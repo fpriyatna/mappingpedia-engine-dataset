@@ -1,0 +1,2 @@
+#addDistributionModifiedDate.ttl
+mpidd:distribution-$distributionID dcterms:modified "$distributionModified"^^xsd:dateTime .
