@@ -2,23 +2,150 @@ package es.upm.fi.dia.oeg.mappingpedia.controller
 
 import java.io.File
 import java.net.HttpURLConnection
-import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.{Date, Properties}
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.mashape.unirest.http.{HttpResponse, JsonNode}
-import es.upm.fi.dia.oeg.mappingpedia.MappingPediaEngine
+import es.upm.fi.dia.oeg.mappingpedia.MappingPediaConstant
 import es.upm.fi.dia.oeg.mappingpedia.model.result.{AddDatasetResult, AddDistributionResult, ListResult}
 import es.upm.fi.dia.oeg.mappingpedia.model._
-import es.upm.fi.dia.oeg.mappingpedia.utility.{CKANUtility, GitHubUtility, MappingPediaUtility, VirtuosoClient}
+import es.upm.fi.dia.oeg.mappingpedia.utility._
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.HttpClientBuilder
 import org.slf4j.{Logger, LoggerFactory}
 import org.springframework.web.multipart.MultipartFile
 
-class DistributionController(val ckanClient:CKANUtility
-                             , val githubClient:GitHubUtility
-                             , val virtuosoClient: VirtuosoClient)
+class DistributionController(
+                              val ckanClient:MpcCkanUtility
+                              , val githubClient:MpcGithubUtility
+                              , val virtuosoClient:MpcVirtuosoUtility
+                              , val properties:Properties
+                            )
 {
+
   val logger: Logger = LoggerFactory.getLogger(this.getClass);
   val mapper = new ObjectMapper();
+
+  def createResource(distribution: Distribution, textBodyMap:Option[Map[String, String]]) = {
+    logger.info("CREATING A RESOURCE ON CKAN ... ")
+    this.createOrUpdateResource(MappingPediaConstant.CKAN_API_ACTION_RESOURCE_CREATE, distribution, textBodyMap);
+  }
+
+  def updateResource(distribution: Distribution, textBodyMap:Option[Map[String, String]]) = {
+    logger.info("UPDATING A RESOURCE ON CKAN ... ")
+    val textBodyMap2 = textBodyMap.get + ("id" -> distribution.ckanResourceId);
+    this.createOrUpdateResource(MappingPediaConstant.CKAN_API_ACTION_RESOURCE_UPDATE, distribution, Some(textBodyMap2));
+  }
+
+  def createOrUpdateResource(ckanAction:String, distribution: Distribution, textBodyMap:Option[Map[String, String]]) = {
+    //val dataset = distribution.dataset;
+
+    //val packageId = distribution.dataset.dctIdentifier;
+    val datasetPackageId = distribution.dataset.ckanPackageId;
+    val packageId = if(datasetPackageId == null) { distribution.dataset.dctIdentifier } else { datasetPackageId }
+    logger.info(s"packageId = $packageId")
+
+
+    logger.info(s"distribution.dcatDownloadURL = ${distribution.dcatDownloadURL}")
+
+    val httpClient = HttpClientBuilder.create.build
+    try {
+
+
+      val createOrUpdateUrl = this.ckanClient.ckanUrl + ckanAction
+      logger.info(s"Hitting endpoint: $createOrUpdateUrl");
+
+      val httpPostRequest = new HttpPost(createOrUpdateUrl)
+      httpPostRequest.setHeader("Authorization", this.ckanClient.authorizationToken)
+      val builder = MultipartEntityBuilder.create()
+        .addTextBody(MappingPediaConstant.CKAN_FIELD_PACKAGE_ID, packageId)
+        .addTextBody(MappingPediaConstant.CKAN_FIELD_URL, distribution.dcatDownloadURL)
+      ;
+
+      logger.info(s"distribution.dctTitle = ${distribution.dctTitle}")
+      if(distribution.dctTitle != null) {
+        builder.addTextBody(MappingPediaConstant.CKAN_FIELD_NAME, distribution.dctTitle)
+      }
+
+      logger.info(s"distribution.dctDescription = ${distribution.dctDescription}")
+      if(distribution.dctDescription != null) {
+        builder.addTextBody(MappingPediaConstant.CKAN_FIELD_DESCRIPTION, distribution.dctDescription)
+      }
+
+      logger.info(s"dataset.dcatMediaType = ${distribution.dcatMediaType}")
+      if(distribution.dcatMediaType != null) {
+        builder.addTextBody("mimetype", distribution.dcatMediaType)
+      }
+
+      logger.info(s"dataset.distributionFile = ${distribution.distributionFile}")
+      if(distribution.distributionFile != null) {
+        builder.addBinaryBody("upload", distribution.distributionFile)
+      }
+
+      if(distribution.dctLanguage != null) {
+        builder.addTextBody("language", distribution.dctLanguage)
+      }
+
+      if(distribution.dctRights != null) {
+        builder.addTextBody("rights", distribution.dctRights)
+      }
+
+      if(distribution.hash != null) {
+        builder.addTextBody("hash", distribution.hash)
+      }
+
+      if(distribution.manifestDownloadURL != null) {
+        builder.addTextBody(MappingPediaConstant.CKAN_RESOURCE_PROV_TRIPLES, distribution.manifestDownloadURL)
+      }
+
+      if(textBodyMap != null && textBodyMap.isDefined) {
+
+        for((key, value) <- textBodyMap.get) {
+
+          if(key != null && value != null) {
+            builder.addTextBody(key, value)
+          } else {
+            logger.warn(s"textBodyMap key,value = ${key},${value}")
+          }
+        }
+      }
+
+
+
+      val mpEntity = builder.build();
+      httpPostRequest.setEntity(mpEntity)
+      val response = httpClient.execute(httpPostRequest)
+
+
+      if (response.getStatusLine.getStatusCode < 200 || response.getStatusLine.getStatusCode >= 300) {
+        logger.info(s"response = ${response}")
+        logger.info(s"response.getEntity= ${response.getEntity}");
+        logger.info(s"response.getEntity.getContent= ${response.getEntity.getContent}");
+        logger.info(s"response.getEntity.getContentType= ${response.getEntity.getContentType}");
+        logger.info(s"response.getProtocolVersion= ${response.getProtocolVersion}");
+        logger.info(s"response.getStatusLine= ${response.getStatusLine}");
+        logger.info(s"response.getStatusLine.getReasonPhrase= ${response.getStatusLine.getReasonPhrase}");
+
+        throw new Exception("Failed to add the file to CKAN storage. Response status line from " + createOrUpdateUrl + " was: " + response.getStatusLine)
+      }
+
+      response
+    } catch {
+      case e: Exception => {
+        e.printStackTrace()
+        //HttpURLConnection.HTTP_INTERNAL_ERROR
+        throw e;
+      }
+
+      // log error
+    } finally {
+      //if (httpClient != null) httpClient.close()
+    }
+
+
+  }
 
   def findDistributions(queryString: String)= {
     logger.info(s"queryString = $queryString");
@@ -59,11 +186,11 @@ class DistributionController(val ckanClient:CKANUtility
     val queryTemplateFile = "templates/findDistributionByCKANResourceId.rq";
 
     val mapValues: Map[String, String] = Map(
-      "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
       , "$ckanResourceId" -> ckanResourceId
     );
 
-    val queryString: String = MappingPediaEngine.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
     this.findDistributions(queryString);
   }
 
@@ -123,19 +250,20 @@ class DistributionController(val ckanClient:CKANUtility
   }
 
   def addModifiedDate(distribution: Distribution) = {
-    val now = MappingPediaEngine.sdf.format(new Date())
+    val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    val now = sdf.format(new Date())
     distribution.dctModified = now;
 
     try {
       val mapValues: Map[String, String] = Map(
-        "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+        "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
         , "$distributionID" -> distribution.dctIdentifier
         , "$distributionModified" -> distribution.dctModified
       );
 
       val templateFiles = List("templates/metadata-namespaces-template.ttl"
         , "templates/addDistributionModifiedDate.ttl")
-      val triplesString: String = MappingPediaEngine.generateStringFromTemplateFiles(
+      val triplesString: String = MpcUtility.generateStringFromTemplateFiles(
         mapValues, templateFiles)
       logger.info(s"adding triples to virtuoso: ${triplesString}");
 
@@ -149,8 +277,11 @@ class DistributionController(val ckanClient:CKANUtility
     }
   }
 
-  def addDistribution(distribution: Distribution, manifestFileRef:MultipartFile
-                      , generateManifestFile:Boolean, storeToCKAN:Boolean
+  def addDistribution(
+                       distribution: Distribution
+                       , pManifestFile:File
+                       , generateManifestFile:Boolean
+                       , storeToCKAN:Boolean
                      ) : AddDistributionResult = {
 
     //val dataset = distribution.dataset
@@ -204,12 +335,15 @@ class DistributionController(val ckanClient:CKANUtility
 
     //STORING DISTRIBUTION FILE AS RESOURCE ON CKAN
     val ckanAddResourceResponse = try {
-      if(MappingPediaEngine.mappingpediaProperties.ckanEnable && storeToCKAN) {
+      val ckanEnableValue = this.properties.getProperty(MappingPediaConstant.CKAN_ENABLE)
+      val isCkanEnabled = MappingPediaUtility.stringToBoolean(ckanEnableValue);
+
+      if(isCkanEnabled && storeToCKAN) {
         logger.info("STORING DISTRIBUTION FILE AS A RESOURCE ON CKAN...")
 
         if(distribution != null
           && (distribution.distributionFile != null || distribution.dcatDownloadURL != null)) {
-          ckanClient.createResource(distribution, None);
+          this.createResource(distribution, None);
         } else {
           null
         }
@@ -250,11 +384,8 @@ class DistributionController(val ckanClient:CKANUtility
 
     //MANIFEST FILE
     val manifestFile:File = try {
-      if (manifestFileRef != null) {//if the user provides a manifest file
-        logger.info("Generating manifest file ... (manifestFileRef is not null)")
-        val generatedFile = MappingPediaUtility.multipartFileToFile(manifestFileRef, distribution.dataset.dctIdentifier)
-        logger.info("Manifest file generated. (manifestFileRef is not null)")
-        generatedFile
+      if (pManifestFile != null) {//if the user provides a manifest file
+        pManifestFile
       } else { // if the user does not provide any manifest file
         if(generateManifestFile) {
           //MANIFEST FILE GENERATION
@@ -275,6 +406,7 @@ class DistributionController(val ckanClient:CKANUtility
       }
     }
 
+
     //STORING MANIFEST ON GITHUB
     val addManifestFileGitHubResponse:HttpResponse[JsonNode] = try {
       this.storeManifestFileOnGitHub(manifestFile, distribution);
@@ -293,10 +425,13 @@ class DistributionController(val ckanClient:CKANUtility
 
     //STORING MANIFEST ON VIRTUOSO
     val addManifestVirtuosoResponse:String = try {
-      if(MappingPediaEngine.mappingpediaProperties.virtuosoEnabled) {
+      val virtuosoEnabledValue = this.properties.getProperty(MappingPediaConstant.VIRTUOSO_ENABLED)
+      val isVirtuosoEnabled = MappingPediaUtility.stringToBoolean(virtuosoEnabledValue);
+
+      if(isVirtuosoEnabled) {
         if(manifestFile != null) {
           logger.info(s"STORING TRIPLES OF THE MANIFEST FILE FOR DISTRIBUTION ${distribution.dctIdentifier} ON VIRTUOSO...")
-          MappingPediaEngine.virtuosoClient.storeFromFile(manifestFile)
+          this.virtuosoClient.storeFromFile(manifestFile)
           "OK"
         } else {
           "No manifest has been generated/provided";
@@ -445,7 +580,7 @@ object DistributionController {
 
       val filename = s"metadata-distribution-${distribution.dctIdentifier}.ttl"
 
-      val manifestFile = MappingPediaEngine.generateManifestFile(
+      val manifestFile = MpcUtility.generateManifestFile(
         mapValuesWithDistribution, templateFiles, filename, dataset.dctIdentifier);
       logger.info("Manifest file generated.")
       manifestFile;

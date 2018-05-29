@@ -2,22 +2,103 @@ package es.upm.fi.dia.oeg.mappingpedia.controller
 
 import java.io.File
 import java.net.HttpURLConnection
-import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.{Date, Properties}
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.mashape.unirest.http.{HttpResponse, JsonNode}
-import es.upm.fi.dia.oeg.mappingpedia.{MappingPediaConstant, MappingPediaEngine}
-import es.upm.fi.dia.oeg.mappingpedia.controller.DatasetController.logger
-import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset}
+import com.mashape.unirest.http.{HttpResponse, JsonNode, Unirest}
+import es.upm.fi.dia.oeg.mappingpedia.MappingPediaConstant
+import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset, Distribution}
 import org.slf4j.{Logger, LoggerFactory}
 import es.upm.fi.dia.oeg.mappingpedia.model.result.{AddDatasetResult, ListResult}
-import es.upm.fi.dia.oeg.mappingpedia.utility.{CKANUtility, GitHubUtility, MappingPediaUtility, VirtuosoClient}
+import es.upm.fi.dia.oeg.mappingpedia.utility.CKANUtility.logger
+import es.upm.fi.dia.oeg.mappingpedia.utility._
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.HttpClientBuilder
+import org.json.JSONObject
 import org.springframework.web.multipart.MultipartFile
 
-class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtility, val virtuosoClient: VirtuosoClient)  {
+import scala.io.Source
+
+class DatasetController(
+                         ckanClient:MpcCkanUtility
+                         , githubClient:MpcGithubUtility
+                         , virtuosoClient:MpcVirtuosoUtility
+                         , properties: Properties
+                       )
+{
+
   val logger: Logger = LoggerFactory.getLogger(this.getClass);
-  val distributionController = new DistributionController(ckanClient, githubClient, virtuosoClient: VirtuosoClient);
+  val distributionController = new DistributionController(
+    ckanClient, githubClient, virtuosoClient, properties);
   val mapper = new ObjectMapper();
+
+  def addNewPackage(dataset:Dataset) = {
+    val organization = dataset.dctPublisher;
+
+    val jsonObj = new JSONObject();
+    jsonObj.put("name", dataset.dctIdentifier);
+    jsonObj.put("owner_org", organization.dctIdentifier);
+
+    val optionalFields:Option[Map[String, String]] = Some(Map(
+      "title" -> dataset.dctTitle
+      , "notes" -> dataset.dctDescription
+      , "category" -> dataset.mvpCategory
+      , "tag_string" -> dataset.dcatKeyword
+      , "language" -> dataset.dctLanguage
+      , "license_id" -> dataset.ckanPackageLicense
+      , "url" -> dataset.dctSource
+      , "version" -> dataset.ckanVersion
+      , "author" -> dataset.getAuthor_name
+      , "author_email" -> dataset.getAuthor_email
+      , "maintainer" -> dataset.getMaintainer_name
+      , "maintainer_email" -> dataset.getMaintainer_email
+      , "temporal" -> dataset.ckanTemporal
+      , "spatial" -> dataset.ckanSpatial
+      , "accrualPeriodicity" -> dataset.ckanAccrualPeriodicity
+      , "was_attributed_to" -> dataset.provWasAttributedTo
+      , "was_generated_by" -> dataset.provWasGeneratedBy
+      , "was_derived_from" -> dataset.provWasDerivedFrom
+      , "accrualPeriodicity" -> dataset.ckanAccrualPeriodicity
+      , "had_primary_source" -> dataset.provHadPrimarySource
+      , "was_revision_of" -> dataset.provWasRevisionOf
+      , "was_influenced_by" -> dataset.provWasInfluencedBy
+    ))
+
+    if(optionalFields != null && optionalFields.isDefined) {
+      for((key, value) <- optionalFields.get) {
+        if(key != null && !"".equals(key) && value != null && !"".equals(value)) {
+          jsonObj.put(key, value)
+        } else {
+          logger.warn(s"jsonObj key,value = ${key},${value}")
+        }
+      }
+    }
+
+
+    //val uri = MappingPediaEngine.mappingpediaProperties.ckanActionPackageCreate
+    val uri = this.ckanClient.ckanUrl + MappingPediaConstant.CKAN_API_ACTION_PACKAGE_CREATE
+    logger.info(s"Hitting endpoint: $uri");
+
+    val response = Unirest.post(uri)
+      .header("Authorization", this.ckanClient.authorizationToken)
+      .body(jsonObj)
+      .asJson();
+
+    val responseStatus = response.getStatus
+    val responseStatusText = response.getStatusText
+    if (responseStatus < 200 || responseStatus >= 300) {
+      logger.info(s"response.getBody= ${response.getBody}");
+      logger.info(s"response.getHeaders= ${response.getHeaders}");
+      logger.info(s"response.getRawBody= ${response.getRawBody}");
+      logger.info(s"response.getStatus= ${response.getStatus}");
+      logger.info(s"response.getStatusText= ${response.getStatusText}");
+      throw new Exception(responseStatusText)
+    }
+
+    response;
+  }
 
   def findByQueryString(queryString: String): ListResult[Dataset] = {
     logger.debug(s"queryString = $queryString");
@@ -48,9 +129,9 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
         distribution.dcatDownloadURL = MappingPediaUtility.getStringOrElse(qs, "distributionDownloadURL", null)
         */
 
-/*        val mdID = MappingPediaUtility.getStringOrElse(qs, "mdID", null)
-        val md = new MappingDocument(mdID);
-        md.setDownloadURL(MappingPediaUtility.getStringOrElse(qs, "mdDownloadURL", null))*/
+        /*        val mdID = MappingPediaUtility.getStringOrElse(qs, "mdID", null)
+                val md = new MappingDocument(mdID);
+                md.setDownloadURL(MappingPediaUtility.getStringOrElse(qs, "mdDownloadURL", null))*/
 
         results = dataset :: results;
       }
@@ -75,16 +156,16 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
           datasetsByDatasetId.results.iterator.next
         } else { null }
       } else if(ckanPackageId != null) {
-          val datasetsByCKANPackageId = this.findByCKANPackageId(ckanPackageId)
-          if (datasetsByCKANPackageId != null && datasetsByCKANPackageId.results.size > 0) {
-            datasetsByCKANPackageId.results.iterator.next
-          } else { null }
+        val datasetsByCKANPackageId = this.findByCKANPackageId(ckanPackageId)
+        if (datasetsByCKANPackageId != null && datasetsByCKANPackageId.results.size > 0) {
+          datasetsByCKANPackageId.results.iterator.next
+        } else { null }
       } else if(ckanPackageName != null) {
-          val datasetsByCKANPackageName = this.findByCKANPackageName(ckanPackageName)
-            if (datasetsByCKANPackageName != null && datasetsByCKANPackageName.results.size > 0) {
-              datasetsByCKANPackageName.results.iterator.next
-            }
-          else { null }
+        val datasetsByCKANPackageName = this.findByCKANPackageName(ckanPackageName)
+        if (datasetsByCKANPackageName != null && datasetsByCKANPackageName.results.size > 0) {
+          datasetsByCKANPackageName.results.iterator.next
+        }
+        else { null }
       } else {
         null
       }
@@ -98,7 +179,8 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     }
   }
 
-  def findOrCreate(organizationId:String, datasetId:String, ckanPackageId:String, ckanPackageName:String) : Dataset = {
+  def findOrCreate(organizationId:String, datasetId:String, ckanPackageId:String
+                   , ckanPackageName:String) : Dataset = {
     logger.info("findOrCreate");
 
     val existingDataset = this.find(datasetId, ckanPackageId, ckanPackageName);
@@ -109,13 +191,13 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
       newDataset.ckanPackageId = ckanPackageId;
       newDataset.ckanPackageName = ckanPackageName;
 
-      val manifestFileRef:MultipartFile = null
+      val manifestFile:File = null
       val generateManifestFile:Boolean = true
       val storeToCKAN:Boolean = false;
       logger.info(s"storeToCKAN = ${storeToCKAN}");
 
 
-      this.add(newDataset, manifestFileRef, generateManifestFile, storeToCKAN)
+      this.add(newDataset, manifestFile, generateManifestFile, storeToCKAN)
       newDataset
     } else { existingDataset }
 
@@ -123,21 +205,22 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
   }
 
   def addModifiedDate(dataset: Dataset) = {
+    val sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
 
-    val now = MappingPediaEngine.sdf.format(new Date())
+    val now = sdf.format(new Date())
     dataset.dctModified = now;
 
     try {
       val mapValues: Map[String, String] = Map(
-        "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+        "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
         , "$datasetID" -> dataset.dctIdentifier
         , "$datasetModified" -> dataset.dctModified
       );
 
       val templateFiles = List("templates/metadata-namespaces-template.ttl"
         , "templates/addDatasetModifiedDate.ttl");
-      val triplesString: String =MappingPediaEngine.generateStringFromTemplateFiles(
-          mapValues, templateFiles)
+      val triplesString: String = MpcUtility.generateStringFromTemplateFiles(
+        mapValues, templateFiles)
       logger.info(s"adding triples to virtuoso: ${triplesString}");
 
       if(triplesString != null) {
@@ -155,10 +238,10 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     val queryTemplateFile = "templates/findAllDatasets.rq";
 
     val mapValues: Map[String, String] = Map(
-      "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
     );
 
-    val queryString: String = MappingPediaEngine.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
     this.findByQueryString(queryString);
   }
 
@@ -167,11 +250,11 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     val queryTemplateFile = "templates/findDatasetByDatasetId.rq";
 
     val mapValues: Map[String, String] = Map(
-      "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
       , "$datasetId" -> datasetId
     );
 
-    val queryString: String = MappingPediaEngine.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
     this.findByQueryString(queryString);
   }
 
@@ -180,11 +263,11 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     val queryTemplateFile = "templates/findDatasetByCKANPackageId.rq";
 
     val mapValues: Map[String, String] = Map(
-      "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
       , "$ckanPackageId" -> ckanPackageId
     );
 
-    val queryString: String = MappingPediaEngine.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
     this.findByQueryString(queryString);
   }
 
@@ -193,11 +276,11 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     val queryTemplateFile = "templates/findDatasetByCKANPackageName.rq";
 
     val mapValues: Map[String, String] = Map(
-      "$graphURL" -> MappingPediaEngine.mappingpediaProperties.graphName
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
       , "$ckanPackageName" -> ckanPackageName
     );
 
-    val queryString: String = MappingPediaEngine.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
     this.findByQueryString(queryString);
   }
 
@@ -219,9 +302,13 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
   }
 
 
-  def add(dataset:Dataset, manifestFileRef:MultipartFile
-                 , generateManifestFile:Boolean, storeToCKAN:Boolean
-                ) : AddDatasetResult = {
+  def add(
+           dataset:Dataset
+           //, manifestFileRef:MultipartFile
+           , pManifestFile:File
+           , generateManifestFile:Boolean
+           , storeToCKAN:Boolean
+         ) : AddDatasetResult = {
     logger.info("add");
     //val distributions = dataset.dcatDistributions;
     val unannotatedDistributions = dataset.getUnannotatedDistributions;
@@ -231,12 +318,15 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
 
     //STORING DATASET AS PACKAGE ON CKAN
     val ckanAddPackageResponse:HttpResponse[JsonNode] = try {
-      logger.info(s"MappingPediaEngine.mappingpediaProperties.ckanEnable = ${MappingPediaEngine.mappingpediaProperties.ckanEnable}");
+
+      logger.info(s"MappingPediaEngine.mappingpediaProperties.ckanEnable = ${this.properties.getProperty(MappingPediaConstant.CKAN_ENABLE)}");
       logger.info(s"storeToCKAN = ${storeToCKAN}");
 
-      if(MappingPediaEngine.mappingpediaProperties.ckanEnable && storeToCKAN) {
+      val ckanEnabledValue = this.properties.getProperty(MappingPediaConstant.CKAN_ENABLE);
+      val isCkanEnabled = MappingPediaUtility.stringToBoolean(ckanEnabledValue);
+      if(isCkanEnabled && storeToCKAN) {
         logger.info("STORING DATASET AS A PACKAGE ON CKAN ...")
-        val response = ckanClient.addNewPackage(dataset);
+        val response = this.addNewPackage(dataset);
         response
       } else {
         null
@@ -306,12 +396,36 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     }
     */
 
+    //MANIFEST FILE
+    val manifestFile:File = try {
+      if (pManifestFile != null) {//if the user provides a manifest file
+        pManifestFile
+      } else { // if the user does not provide any manifest file
+        if(generateManifestFile) {
+          //MANIFEST FILE GENERATION
+          val generatedFile = DatasetController.generateManifestFile(dataset);
+          generatedFile
+        } else {
+          null
+        }
+      }
+    } catch {
+      case e: Exception => {
+        errorOccured = true;
+        e.printStackTrace()
+        val errorMessage = "error generating manifest file: " + e.getMessage
+        logger.error(errorMessage)
+        collectiveErrorMessage = errorMessage :: collectiveErrorMessage
+        null
+      }
+    }
+
     if(unannotatedDistributions != null) {
       unannotatedDistributions.map(distribution => {
         //CALLING ADD DISTRIBUTION IN DISTRIBUTIONCONTROLLER
         logger.info(s"distribution = " + distribution);
         val addDistributionResult = if(distribution != null) {
-          this.distributionController.addDistribution(distribution, manifestFileRef:MultipartFile
+          this.distributionController.addDistribution(distribution, manifestFile:File
             , generateManifestFile, storeToCKAN)
         } else {
           null
@@ -382,32 +496,7 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     else { addDistributionFileGitHubResponse.getStatusText }
     */
 
-    //MANIFEST FILE
-    val manifestFile:File = try {
-      if (manifestFileRef != null) {//if the user provides a manifest file
-        logger.info("Generating manifest file ... (manifestFileRef is not null)")
-        val generatedFile = MappingPediaUtility.multipartFileToFile(manifestFileRef, dataset.dctIdentifier)
-        logger.info("Manifest file generated. (manifestFileRef is not null)")
-        generatedFile
-      } else { // if the user does not provide any manifest file
-        if(generateManifestFile) {
-          //MANIFEST FILE GENERATION
-          val generatedFile = DatasetController.generateManifestFile(dataset);
-          generatedFile
-        } else {
-          null
-        }
-      }
-    } catch {
-      case e: Exception => {
-        errorOccured = true;
-        e.printStackTrace()
-        val errorMessage = "error generating manifest file: " + e.getMessage
-        logger.error(errorMessage)
-        collectiveErrorMessage = errorMessage :: collectiveErrorMessage
-        null
-      }
-    }
+
 
     //STORING MANIFEST ON GITHUB
     val addManifestFileGitHubResponse:HttpResponse[JsonNode] = try {
@@ -425,10 +514,13 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
 
     //STORING MANIFEST ON VIRTUOSO
     val addManifestVirtuosoResponse:String = try {
-      if(MappingPediaEngine.mappingpediaProperties.virtuosoEnabled) {
+      val virtuosoEnabledValue = this.properties.getProperty(MappingPediaConstant.VIRTUOSO_ENABLED)
+      val isVirtuosoEnabled = MappingPediaUtility.stringToBoolean(virtuosoEnabledValue);
+
+      if(isVirtuosoEnabled) {
         if(manifestFile != null) {
           logger.info(s"STORING TRIPLES OF THE MANIFEST OF DATASET ${dataset.dctIdentifier} ON VIRTUOSO ...")
-          MappingPediaEngine.virtuosoClient.storeFromFile(manifestFile)
+          this.virtuosoClient.storeFromFile(manifestFile)
           "OK"
         } else {
           "No manifest has been generated/provided";
@@ -556,10 +648,51 @@ class DatasetController(val ckanClient:CKANUtility, val githubClient:GitHubUtili
     */
 
   }
+
+
+
 }
 
 object DatasetController {
   val logger: Logger = LoggerFactory.getLogger(this.getClass);
+
+  def apply(): DatasetController = {
+    val propertiesFilePath = "/" + MappingPediaConstant.DEFAULT_CONFIGURATION_FILENAME;
+    val url = getClass.getResource(propertiesFilePath)
+    logger.info(s"loading mappingpedia-engine-datasets configuration file from:\n ${url}")
+    val properties = new Properties();
+    if (url != null) {
+      val source = Source.fromURL(url)
+      val reader = source.bufferedReader();
+      properties.load(reader)
+      logger.debug(s"properties.keySet = ${properties.keySet()}")
+    }
+
+    DatasetController(properties)
+  }
+
+  def apply(properties: Properties): DatasetController = {
+    val ckanUtility = new MpcCkanUtility(
+      properties.getProperty(MappingPediaConstant.CKAN_URL)
+      , properties.getProperty(MappingPediaConstant.CKAN_KEY)
+    );
+
+    val githubUtility = new MpcGithubUtility(
+      properties.getProperty(MappingPediaConstant.GITHUB_REPOSITORY)
+      , properties.getProperty(MappingPediaConstant.GITHUB_USER)
+      , properties.getProperty(MappingPediaConstant.GITHUB_ACCESS_TOKEN)
+    );
+
+    val virtuosoUtility = new MpcVirtuosoUtility(
+      properties.getProperty(MappingPediaConstant.VIRTUOSO_JDBC)
+      , properties.getProperty(MappingPediaConstant.VIRTUOSO_USER)
+      , properties.getProperty(MappingPediaConstant.VIRTUOSO_PWD)
+      , properties.getProperty(MappingPediaConstant.GRAPH_NAME)
+    );
+
+    new DatasetController(ckanUtility, githubUtility, virtuosoUtility, properties);
+
+  }
   /*
   val ckanUtility = new CKANUtility(
     MappingPediaEngine.mappingpediaProperties.ckanURL, MappingPediaEngine.mappingpediaProperties.ckanKey)
@@ -683,7 +816,7 @@ object DatasetController {
       */
       val filename = s"metadata-dataset-${dataset.dctIdentifier}.ttl"
 
-      val manifestFile = MappingPediaEngine.generateManifestFile(
+      val manifestFile = MpcUtility.generateManifestFile(
         mapValuesWithoutDistribution, templateFilesWithoutDistribution, filename, dataset.dctIdentifier);
       logger.info("Manifest file generated.")
       manifestFile;
@@ -695,7 +828,6 @@ object DatasetController {
       }
     }
   }
-
 
 
 
