@@ -17,14 +17,14 @@ import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.HttpClientBuilder
 import org.json.JSONObject
-import org.springframework.web.multipart.MultipartFile
+//import org.springframework.web.multipart.MultipartFile
 
 import scala.io.Source
 
 class DatasetController(
-                         ckanClient:MpcCkanUtility
-                         , githubClient:MpcGithubUtility
-                         , virtuosoClient:MpcVirtuosoUtility
+                         val ckanClient:MpcCkanUtility
+                         , val githubClient:MpcGithubUtility
+                         , val virtuosoClient:MpcVirtuosoUtility
                          , properties: Properties
                        )
 {
@@ -658,6 +658,8 @@ object DatasetController {
 
   def apply(): DatasetController = {
     val propertiesFilePath = "/" + MappingPediaConstant.DEFAULT_CONFIGURATION_FILENAME;
+
+    /*
     val url = getClass.getResource(propertiesFilePath)
     logger.info(s"loading mappingpedia-engine-datasets configuration file from:\n ${url}")
     val properties = new Properties();
@@ -667,6 +669,12 @@ object DatasetController {
       properties.load(reader)
       logger.debug(s"properties.keySet = ${properties.keySet()}")
     }
+    */
+
+    val in = getClass.getResourceAsStream(propertiesFilePath)
+    val properties = new Properties();
+    properties.load(in)
+    logger.debug(s"properties.keySet = ${properties.keySet()}")
 
     DatasetController(properties)
   }

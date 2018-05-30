@@ -7,3 +7,4 @@ upload-dir
 mappingpedia-engine-dataset.iml
 target
 src/main/resources/config.properties
+*.iml

@@ -17,6 +17,8 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.slf4j.{Logger, LoggerFactory}
 import org.springframework.web.multipart.MultipartFile
 
+import scala.io.Source
+
 class DistributionController(
                               val ckanClient:MpcCkanUtility
                               , val githubClient:MpcGithubUtility
@@ -535,6 +537,44 @@ class DistributionController(
 
 object DistributionController {
   val logger: Logger = LoggerFactory.getLogger(this.getClass);
+
+  def apply(): DistributionController = {
+    val propertiesFilePath = "/" + MappingPediaConstant.DEFAULT_CONFIGURATION_FILENAME;
+    val url = getClass.getResource(propertiesFilePath)
+    logger.info(s"loading mappingpedia-engine-datasets configuration file from:\n ${url}")
+    val properties = new Properties();
+    if (url != null) {
+      val source = Source.fromURL(url)
+      val reader = source.bufferedReader();
+      properties.load(reader)
+      logger.debug(s"properties.keySet = ${properties.keySet()}")
+    }
+
+    DistributionController(properties)
+  }
+
+  def apply(properties: Properties): DistributionController = {
+    val ckanUtility = new MpcCkanUtility(
+      properties.getProperty(MappingPediaConstant.CKAN_URL)
+      , properties.getProperty(MappingPediaConstant.CKAN_KEY)
+    );
+
+    val githubUtility = new MpcGithubUtility(
+      properties.getProperty(MappingPediaConstant.GITHUB_REPOSITORY)
+      , properties.getProperty(MappingPediaConstant.GITHUB_USER)
+      , properties.getProperty(MappingPediaConstant.GITHUB_ACCESS_TOKEN)
+    );
+
+    val virtuosoUtility = new MpcVirtuosoUtility(
+      properties.getProperty(MappingPediaConstant.VIRTUOSO_JDBC)
+      , properties.getProperty(MappingPediaConstant.VIRTUOSO_USER)
+      , properties.getProperty(MappingPediaConstant.VIRTUOSO_PWD)
+      , properties.getProperty(MappingPediaConstant.GRAPH_NAME)
+    );
+
+    new DistributionController(ckanUtility, githubUtility, virtuosoUtility, properties);
+
+  }
 
   def generateManifestFile(distribution: Distribution) = {
     logger.info("GENERATING MANIFEST FOR DISTRIBUTION ...")
