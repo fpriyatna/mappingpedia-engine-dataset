@@ -23,8 +23,8 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>es.upm.fi.dia.oeg.mappingpedia</groupId>
-			<artifactId>mappingpedia-commons</artifactId>
+			<groupId>es.upm.fi.dia.oeg.mappingpedia.engine</groupId>
+			<artifactId>commons</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
 
