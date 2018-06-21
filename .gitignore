@@ -1,2 +1,10 @@
 *.class
 *.log
+.idea
+executions
+log
+upload-dir
+mappingpedia-engine-dataset.iml
+target
+src/main/resources/config.properties
+*.iml

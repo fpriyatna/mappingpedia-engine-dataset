@@ -1,0 +1,19 @@
+#metadata-distributions-template.ttl
+
+mpids:dataset-$datasetID dcat:distribution mpidd:distribution-$distributionID .
+
+mpidd:distribution-$distributionID a dcat:Distribution;
+    dcterms:identifier "$distributionID" ;
+    mpv:ckanResourceId "$ckanResourceID" ;
+    dcterms:title "$distributionTitle" ;
+    dcterms:description "$distributionDescription" ;
+    dcterms:issued "$distributionIssued"^^xsd:dateTime;
+    dcterms:modified "$distributionModified"^^xsd:dateTime;
+    dcat:accessURL <$distributionAccessURL> ;
+    dcat:downloadURL <$distributionDownloadURL> ;
+    dcat:mediaType "$distributionMediaType" ;
+    mpv:hash "$hash" ;
+    dcterms:language <$distributionLanguage> ;
+    dcterms:license "$distributionLicense" ;
+    dcterms:rights "$distributionRights" ;
+.

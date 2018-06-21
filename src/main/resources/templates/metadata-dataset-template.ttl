@@ -1,0 +1,36 @@
+#metadata-dataset-template.ttl
+
+#mpv:Dataset rdfs:subClassOf dcat:Dataset .
+mpids:dataset-$datasetID a mpv:Dataset ;
+    dcat:publisher mpip:$publisherId ;
+    dcterms:title "$datasetTitle" ;
+    dcterms:description "$datasetDescription" ;
+    dcterms:issued "$datasetIssued"^^xsd:dateTime;
+    dcterms:modified "$datasetModified"^^xsd:dateTime;
+    dcterms:identifier "$datasetID" ;
+    dcat:keyword "$datasetKeywords" ;
+    dcterms:language <$datasetLanguage> ;
+    dct:accessRight "$accessRight" ;
+    dct:provenance "$provenance" ;
+    mpv:datasetIdentifier "dataset-$datasetID" ;
+    mpv:ckanPackageId "$ckanPackageId" ;
+    mpv:ckanPackageName "$ckanPackageName" ;
+    mpv:ckanPackageLicense "$ckanPackageLicense" ;
+    dct:source "$ckanSource";
+    owl:versionInfo "$ckanVersion" ;
+    dct:hasVersion "$ckanVersion" ;
+    mpv:ckanAuthor "$ckanAuthor" ;
+    mpv:ckanAuthorEmail "$ckanAuthorEmail" ;
+    mpv:ckanMaintainer "$ckanMaintainer" ;
+    mpv:ckanMaintainerEmail "$ckanMaintainerEmail" ;
+    dct:temporal "$ckanTemporal" ;
+    dct:spatial "$ckanSpatial" ;
+    dct:ckanAccrualPeriodicity "$ckanAccrualPeriodicity" ;
+    prov:wasAttributedTo <$provWasAttributedTo>;
+    prov:wasGeneratedBy <$provWasGeneratedBy>;
+    prov:wasDerivedFrom <$provWasDerivedFrom>;
+    prov:specializationOf <$provSpecializationOf>;
+    prov:hadPrimarySource <$provHadPrimarySource>;
+    prov:wasRevisionOf <$provWasRevisionOf>;
+    prov:wasInfluencedBy <$provWasInfluencedBy>;
+.
