@@ -6,9 +6,12 @@ import es.upm.fi.dia.oeg.mappingpedia.controller.{DatasetController, Distributio
 import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset, Distribution, UnannotatedDistribution}
 
 object TestDatasetsController {
+  val organizationId = "test-mobileage-upm";
+  val agent = new Agent(organizationId);
+  val dataset = new Dataset(agent);
+  val datasetController = DatasetController();
+
   def main(args:Array[String]) = {
-    val organizationId = "test-mobileage-upm";
-    val agent = new Agent(organizationId);
 
 
 
@@ -22,9 +25,7 @@ object TestDatasetsController {
     println("bye");
   }
 
-  def testAddEmptyDataset(agent: Agent) = {
-    val dataset = new Dataset(agent);
-    val datasetController = DatasetController();
+  def testAddEmptyDataset() = {
     datasetController.add(
       dataset:Dataset
       , null
@@ -33,10 +34,8 @@ object TestDatasetsController {
     );
   }
 
-  def testOneDistributionDataset(agent: Agent) = {
-    val dataset = new Dataset(agent);
+  def testOneDistributionDataset(agent:Agent) = {
     val distribution = new UnannotatedDistribution(dataset);
-
     val datasetController = DatasetController();
     datasetController.add(
       dataset:Dataset
@@ -54,7 +53,6 @@ object TestDatasetsController {
       , true
       , true
     )
-
   }
 
 
