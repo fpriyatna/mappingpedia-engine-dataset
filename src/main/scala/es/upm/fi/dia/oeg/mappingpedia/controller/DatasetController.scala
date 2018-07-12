@@ -1,5 +1,8 @@
 package es.upm.fi.dia.oeg.mappingpedia.controller
 
+import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
+
 import java.io.File
 import java.net.HttpURLConnection
 import java.text.SimpleDateFormat
@@ -11,7 +14,7 @@ import es.upm.fi.dia.oeg.mappingpedia.MappingPediaConstant
 import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset, Distribution}
 import org.slf4j.{Logger, LoggerFactory}
 import es.upm.fi.dia.oeg.mappingpedia.model.result.{AddDatasetResult, ListResult}
-import es.upm.fi.dia.oeg.mappingpedia.utility.CKANUtility.logger
+import es.upm.fi.dia.oeg.mappingpedia.utility.MpcCkanUtility.logger
 import es.upm.fi.dia.oeg.mappingpedia.utility._
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.mime.MultipartEntityBuilder
@@ -36,10 +39,6 @@ class DatasetController(
 
   def addNewPackage(dataset:Dataset) = {
     val organization = dataset.dctPublisher;
-
-    val jsonObj = new JSONObject();
-    jsonObj.put("name", dataset.dctIdentifier);
-    jsonObj.put("owner_org", organization.dctIdentifier);
 
     val optionalFields:Option[Map[String, String]] = Some(Map(
       "title" -> dataset.dctTitle
@@ -66,27 +65,44 @@ class DatasetController(
       , "was_influenced_by" -> dataset.provWasInfluencedBy
     ))
 
-    if(optionalFields != null && optionalFields.isDefined) {
-      for((key, value) <- optionalFields.get) {
-        if(key != null && !"".equals(key) && value != null && !"".equals(value)) {
-          jsonObj.put(key, value)
-        } else {
-          logger.warn(s"jsonObj key,value = ${key},${value}")
+    val ckanVersion = ckanClient.ckanVersion;
+    val response = if(ckanVersion.isDefined) {
+      if(ckanVersion.get.equals("2.6.2")) { //use json objects
+        val jsonObj = new JSONObject();
+        jsonObj.put("name", dataset.dctIdentifier);
+        jsonObj.put("owner_org", organization.dctIdentifier);
+
+        if(optionalFields != null && optionalFields.isDefined) {
+          for((key, value) <- optionalFields.get) {
+            if(key != null && !"".equals(key) && value != null && !"".equals(value)) {
+              jsonObj.put(key, value)
+            } else {
+              logger.warn(s"jsonObj key,value = ${key},${value}")
+            }
+          }
         }
+
+        this.ckanClient.createPackage(jsonObj);
+      } else { // use fields
+        val mandatoryFields:Map[String, String] = Map(
+          "name" -> dataset.dctIdentifier
+          , "owner_org" -> organization.dctIdentifier
+        );
+        val fields:Map[String, String] = mandatoryFields ++ optionalFields.getOrElse(Map.empty);
+        this.ckanClient.createPackage(fields);
       }
+    } else { // use fields
+      val mandatoryFields:Map[String, String] = Map(
+        "name" -> dataset.dctIdentifier
+        , "owner_org" -> organization.dctIdentifier
+      );
+      val fields:Map[String, String] = mandatoryFields ++ optionalFields.getOrElse(Map.empty);
+      this.ckanClient.createPackage(fields);
     }
 
-
-    //val uri = MappingPediaEngine.mappingpediaProperties.ckanActionPackageCreate
-    val uri = this.ckanClient.ckanUrl + MappingPediaConstant.CKAN_API_ACTION_PACKAGE_CREATE
-    logger.info(s"Hitting endpoint: $uri");
-
-    val response = Unirest.post(uri)
-      .header("Authorization", this.ckanClient.authorizationToken)
-      .body(jsonObj)
-      .asJson();
-
     val responseStatus = response.getStatus
+    logger.info(s"\tresponseStatus = ${responseStatus}");
+
     val responseStatusText = response.getStatusText
     if (responseStatus < 200 || responseStatus >= 300) {
       logger.info(s"response.getBody= ${response.getBody}");

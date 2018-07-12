@@ -371,7 +371,7 @@ class DistributionController(
     if(ckanAddResourceResponseStatusCode != null && ckanAddResourceResponseStatusCode >= 200
       && ckanAddResourceResponseStatusCode <300) {
       try {
-        val ckanAddResourceResult = CKANUtility.getResult(ckanAddResourceResponse);
+        val ckanAddResourceResult = MpcCkanUtility.getResult(ckanAddResourceResponse);
         val packageId = ckanAddResourceResult.getString("package_id")
         val resourceId = ckanAddResourceResult.getString("id")
         val resourceURL = ckanAddResourceResult.getString("url")
