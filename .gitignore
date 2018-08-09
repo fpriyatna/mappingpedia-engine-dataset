@@ -8,3 +8,7 @@ mappingpedia-engine-dataset.iml
 target
 src/main/resources/config.properties
 *.iml
+.settings/
+.classpath
+.cache-main
+.project
