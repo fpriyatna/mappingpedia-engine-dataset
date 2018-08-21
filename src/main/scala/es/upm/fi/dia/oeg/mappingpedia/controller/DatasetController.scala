@@ -325,7 +325,7 @@ class DatasetController(
            , generateManifestFile:Boolean
            , storeToCKAN:Boolean
          ) : AddDatasetResult = {
-    logger.info("add");
+    //logger.info("add");
     //val distributions = dataset.dcatDistributions;
     val unannotatedDistributions = dataset.getUnannotatedDistributions;
 
@@ -413,7 +413,7 @@ class DatasetController(
     */
 
     //MANIFEST FILE
-    val manifestFile:File = try {
+    val datasetManifestFile:File = try {
       if (pManifestFile != null) {//if the user provides a manifest file
         pManifestFile
       } else { // if the user does not provide any manifest file
@@ -441,7 +441,7 @@ class DatasetController(
         //CALLING ADD DISTRIBUTION IN DISTRIBUTIONCONTROLLER
         logger.info(s"distribution = " + distribution);
         val addDistributionResult = if(distribution != null) {
-          this.distributionController.addDistribution(distribution, manifestFile:File
+          this.distributionController.addDistribution(distribution, null
             , generateManifestFile, storeToCKAN)
         } else {
           null
@@ -516,7 +516,7 @@ class DatasetController(
 
     //STORING MANIFEST ON GITHUB
     val addManifestFileGitHubResponse:HttpResponse[JsonNode] = try {
-      this.storeManifestFileOnGitHub(manifestFile, dataset);
+      this.storeManifestFileOnGitHub(datasetManifestFile, dataset);
     } catch {
       case e: Exception => {
         errorOccured = true;
@@ -534,9 +534,9 @@ class DatasetController(
       val isVirtuosoEnabled = MappingPediaUtility.stringToBoolean(virtuosoEnabledValue);
 
       if(isVirtuosoEnabled) {
-        if(manifestFile != null) {
+        if(datasetManifestFile != null) {
           logger.info(s"STORING TRIPLES OF THE MANIFEST OF DATASET ${dataset.dctIdentifier} ON VIRTUOSO ...")
-          this.virtuosoClient.storeFromFile(manifestFile)
+          this.virtuosoClient.storeFromFile(datasetManifestFile)
           "OK"
         } else {
           "No manifest has been generated/provided";

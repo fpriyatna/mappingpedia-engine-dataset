@@ -36,6 +36,8 @@ object TestDatasetsController {
 
   def testOneDistributionDataset(agent:Agent) = {
     val distribution = new UnannotatedDistribution(dataset);
+    distribution.dcatDownloadURL = "https://raw.githubusercontent.com/oeg-upm/morph-rdb/master/morph-examples/examples-csv/edificio-historico.csv"
+
     val datasetController = DatasetController();
     datasetController.add(
       dataset:Dataset

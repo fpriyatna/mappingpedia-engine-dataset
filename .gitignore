@@ -12,3 +12,4 @@ src/main/resources/config.properties
 .classpath
 .cache-main
 .project
+.cache-tests
