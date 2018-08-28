@@ -9,18 +9,21 @@ prefix dcterms: <http://purl.org/dc/elements/1.1/>
 SELECT DISTINCT *
 FROM <$graphURL>
 WHERE {
-    ?md mpv:hasDataset ?dataset .
-    ?md dcterms:identifier ?mdID .
-    OPTIONAL { ?md mpv:hasMappingDocumentFile ?mdDownloadURL . }
-    OPTIONAL { ?md mpv:hasMappingLanguage ?mappingLanguage . }
-
+    ?dataset a mpv:Dataset .
     ?dataset dcterms:identifier ?datasetID .
     OPTIONAL { ?dataset dcterms:title ?datasetTitle . }
-    OPTIONAL { ?dataset dcterms:dateIssued ?dateIssued . }
+    OPTIONAL { ?dataset <http://purl.org/dc/elements/1.1/issued> ?dateIssued . }
     ?dataset dcat:distribution ?distribution .
 
     ?distribution dcterms:identifier ?distributionID .
     OPTIONAL { ?distribution dcat:accessURL ?distributionAccessURL . }
     OPTIONAL { ?distribution dcat:downloadURL ?distributionDownloadURL . }
+
+    OPTIONAL {
+        ?md mpv:hasDataset ?dataset .
+        ?md dcterms:identifier ?mdID .
+        OPTIONAL { ?md mpv:hasMappingDocumentFile ?mdDownloadURL . }
+        OPTIONAL { ?md mpv:hasMappingLanguage ?mappingLanguage . }
+    }
 }
 ORDER BY ASC(?dateIssued)
