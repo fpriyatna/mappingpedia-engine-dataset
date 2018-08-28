@@ -12,8 +12,10 @@ FROM <$graphURL>
 WHERE {
     ?dataset a mpv:Dataset .
     ?dataset dcterms:identifier ?datasetID .
-    ?dataset mpv:ckanPackageId ?ckanPackageId .
-    ?dataset mpv:ckanPackageName ?ckanPackageName .
-    ?dataset dcterms:identifier ?datasetID .
+    OPTIONAL { ?dataset mpv:ckanPackageId ?ckanPackageId . }
+    OPTIONAL { ?dataset mpv:ckanPackageName ?ckanPackageName . }
+    OPTIONAL { ?dataset mpv:ckanOrganizationId ?ckanOrganizationId . }
+    OPTIONAL { ?dataset mpv:ckanOrganizationName ?ckanOrganizationName . }
+
     FILTER regex(str(?datasetID), "$datasetId", "i")
 }

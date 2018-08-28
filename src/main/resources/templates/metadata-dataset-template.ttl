@@ -33,4 +33,6 @@ mpids:dataset-$datasetID a mpv:Dataset ;
     prov:hadPrimarySource <$provHadPrimarySource>;
     prov:wasRevisionOf <$provWasRevisionOf>;
     prov:wasInfluencedBy <$provWasInfluencedBy>;
+    mpv:ckanOrganizationId "$ckanOrganizationId" ;
+    mpv:ckanOrganizationName "$ckanOrganizationName" ;
 .

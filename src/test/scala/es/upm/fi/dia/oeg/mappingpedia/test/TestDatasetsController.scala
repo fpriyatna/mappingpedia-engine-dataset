@@ -4,21 +4,38 @@ import java.io.File
 
 import es.upm.fi.dia.oeg.mappingpedia.controller.{DatasetController, DistributionController}
 import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset, Distribution, UnannotatedDistribution}
+import org.slf4j.{Logger, LoggerFactory}
 
 object TestDatasetsController {
-  val organizationId = "test-mobileage-upm3";
+  val logger: Logger = LoggerFactory.getLogger(this.getClass);
+
+  val organizationId = "test-mobileage-upm";
   val agent = new Agent(organizationId);
   val dataset = new Dataset(agent);
+  dataset.ckanOrganizationName = "test-mobileage-upm3";
+
   val datasetController = DatasetController();
 
   def main(args:Array[String]) = {
+
+
+
+
     //this.testAddEmptyDataset(agent);
-    this.testOneDistributionDataset();
+    //this.testOneDistributionDataset(agent);
 
     //val distribution = new UnannotatedDistribution(dataset);
     //val distributionController = DistributionController();
     //this.testAddDistribution(distributionController, distribution);
+
+    this.testFindAll();
     println("bye");
+  }
+
+  def testFindAll() = {
+    val allDatasets = datasetController.findAll();
+    logger.info(s"allDatasets = ${allDatasets}")
+
   }
 
   def testAddEmptyDataset() = {
@@ -30,11 +47,12 @@ object TestDatasetsController {
     );
   }
 
-  def testOneDistributionDataset() = {
-    val distribution = new UnannotatedDistribution(this.dataset);
+  def testOneDistributionDataset(agent:Agent) = {
+    val distribution = new UnannotatedDistribution(dataset);
     distribution.dcatDownloadURL = "https://raw.githubusercontent.com/oeg-upm/morph-rdb/master/morph-examples/examples-csv/edificio-historico.csv"
 
-    this.datasetController.add(
+    val datasetController = DatasetController();
+    datasetController.add(
       dataset:Dataset
       , null
       , true
@@ -51,4 +69,6 @@ object TestDatasetsController {
       , true
     )
   }
+
+
 }

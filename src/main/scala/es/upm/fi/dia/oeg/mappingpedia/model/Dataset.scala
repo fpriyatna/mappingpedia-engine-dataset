@@ -58,6 +58,8 @@ class Dataset(val dctPublisher:Agent, val dctIdentifier:String) extends Entity {
   var superset: Dataset = null;
   var mvpCategory: String = null;
   var dcatLandingPage:String = null;
+  var ckanOrganizationId:String = null;
+  var ckanOrganizationName:String = null;
 
 
 
@@ -195,6 +197,11 @@ class Dataset(val dctPublisher:Agent, val dctIdentifier:String) extends Entity {
 
 
   def getDistributions = this.dcatDistributions
+
+  def getCKAN_organization_id = this.ckanOrganizationId
+
+  def getCKAN_organization_name = this.ckanOrganizationName
+
 }
 
 object Dataset {
