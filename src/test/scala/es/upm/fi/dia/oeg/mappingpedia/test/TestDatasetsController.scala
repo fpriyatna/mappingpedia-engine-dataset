@@ -6,18 +6,14 @@ import es.upm.fi.dia.oeg.mappingpedia.controller.{DatasetController, Distributio
 import es.upm.fi.dia.oeg.mappingpedia.model.{Agent, Dataset, Distribution, UnannotatedDistribution}
 
 object TestDatasetsController {
-  val organizationId = "test-mobileage-upm";
+  val organizationId = "test-mobileage-upm3";
   val agent = new Agent(organizationId);
   val dataset = new Dataset(agent);
   val datasetController = DatasetController();
 
   def main(args:Array[String]) = {
-
-
-
-
     //this.testAddEmptyDataset(agent);
-    this.testOneDistributionDataset(agent);
+    this.testOneDistributionDataset();
 
     //val distribution = new UnannotatedDistribution(dataset);
     //val distributionController = DistributionController();
@@ -34,10 +30,11 @@ object TestDatasetsController {
     );
   }
 
-  def testOneDistributionDataset(agent:Agent) = {
-    val distribution = new UnannotatedDistribution(dataset);
-    val datasetController = DatasetController();
-    datasetController.add(
+  def testOneDistributionDataset() = {
+    val distribution = new UnannotatedDistribution(this.dataset);
+    distribution.dcatDownloadURL = "https://raw.githubusercontent.com/oeg-upm/morph-rdb/master/morph-examples/examples-csv/edificio-historico.csv"
+
+    this.datasetController.add(
       dataset:Dataset
       , null
       , true
@@ -54,6 +51,4 @@ object TestDatasetsController {
       , true
     )
   }
-
-
 }
