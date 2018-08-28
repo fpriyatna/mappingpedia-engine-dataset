@@ -137,6 +137,8 @@ class DatasetController(
         dataset.dctTitle = MappingPediaUtility.getStringOrElse(qs, "datasetTitle", null)
         dataset.ckanPackageId = MappingPediaUtility.getStringOrElse(qs, "ckanPackageId", null)
         dataset.ckanPackageName = MappingPediaUtility.getStringOrElse(qs, "ckanPackageName", null)
+        dataset.ckanOrganizationId = MappingPediaUtility.getStringOrElse(qs, "ckanOrganizationId", null)
+        dataset.ckanOrganizationName = MappingPediaUtility.getStringOrElse(qs, "ckanOrganizationName", null)
 
         /*
         val distributionID = MappingPediaUtility.getStringOrElse(qs, "distributionID", null)
@@ -787,6 +789,9 @@ object DatasetController {
         , "$ckanSpatial" -> dataset.ckanSpatial
         , "$ckanAccrualPeriodicity" -> dataset.ckanAccrualPeriodicity
         , "$ckanPackageLicense" -> dataset.ckanPackageLicense
+        , "$ckanOrganizationId" -> dataset.ckanOrganizationId
+        , "$ckanOrganizationName" -> dataset.ckanOrganizationName
+
 
         , "$provWasAttributedTo" -> dataset.provWasAttributedTo
         , "$provWasGeneratedBy" -> dataset.provWasGeneratedBy
