@@ -8,12 +8,19 @@ object TestDistributionsController {
   val distributionsController = DistributionController();
 
   def main(args:Array[String]) : Unit = {
-    this.testFindDistributionsByDatasetId("f787e167-1959-4bae-8de4-c86c119d62ab");
+    //this.testFindDistributionsByDatasetId("f787e167-1959-4bae-8de4-c86c119d62ab");
+    this.testFindAllDistributions();
   }
 
 
   def testFindDistributionsByDatasetId(datasetId:String) = {
     val foundDistributions = distributionsController.findDistributionsByDatasetId(datasetId);
+    logger.info(s"foundDistributions = ${foundDistributions}")
+    foundDistributions
+  }
+
+  def testFindAllDistributions() = {
+    val foundDistributions = distributionsController.findAllDistributions();
     logger.info(s"foundDistributions = ${foundDistributions}")
     foundDistributions
   }
