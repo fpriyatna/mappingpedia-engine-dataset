@@ -183,6 +183,18 @@ class DistributionController(
     listResult
   }
 
+  def findAllDistributions() = {
+    logger.info("findAllDistributions")
+    val queryTemplateFile = "templates/findAllDistributions.rq";
+
+    val mapValues: Map[String, String] = Map(
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
+    );
+
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    this.findDistributions(queryString);
+  }
+
   def findByCKANResourceId(ckanResourceId:String) = {
     logger.info("findDistributionByCKANResourceId")
     val queryTemplateFile = "templates/findDistributionByCKANResourceId.rq";
