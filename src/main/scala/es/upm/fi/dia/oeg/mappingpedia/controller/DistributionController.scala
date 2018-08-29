@@ -196,6 +196,19 @@ class DistributionController(
     this.findDistributions(queryString);
   }
 
+  def findDistributionsByDatasetId(datasetId:String) = {
+    logger.info("findDistributionsByDatasetId")
+    val queryTemplateFile = "templates/findDistributionsByDatasetId.rq";
+
+    val mapValues: Map[String, String] = Map(
+      "$graphURL" -> this.properties.getProperty(MappingPediaConstant.GRAPH_NAME)
+      , "$datasetId" -> datasetId
+    );
+
+    val queryString: String = MpcUtility.generateStringFromTemplateFile(mapValues, queryTemplateFile)
+    this.findDistributions(queryString);
+  }
+
   def storeManifestFileOnGitHub(file:File, distribution:Distribution) : HttpResponse[JsonNode] = {
     val dataset = distribution.dataset;
     val organization = dataset.dctPublisher;
