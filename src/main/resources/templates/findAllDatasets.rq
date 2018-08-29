@@ -21,11 +21,11 @@ WHERE {
     OPTIONAL { ?distribution dcat:accessURL ?distributionAccessURL . }
     OPTIONAL { ?distribution dcat:downloadURL ?distributionDownloadURL . }
 
-    OPTIONAL {
-        ?md mpv:hasDataset ?dataset .
-        ?md dcterms:identifier ?mdID .
-        OPTIONAL { ?md mpv:hasMappingDocumentFile ?mdDownloadURL . }
-        OPTIONAL { ?md mpv:hasMappingLanguage ?mappingLanguage . }
-    }
+#    OPTIONAL {
+#        ?md mpv:hasDataset ?dataset .
+#        ?md dcterms:identifier ?mdID .
+#        OPTIONAL { ?md mpv:hasMappingDocumentFile ?mdDownloadURL . }
+#        OPTIONAL { ?md mpv:hasMappingLanguage ?mappingLanguage . }
+#    }
 }
 ORDER BY ASC(?dateIssued)
