@@ -117,7 +117,7 @@ class DatasetController(
   }
 
   def findByQueryString(queryString: String): ListResult[Dataset] = {
-    logger.debug(s"queryString = $queryString");
+    logger.info(s"queryString = $queryString");
 
     /*    val m = VirtModel.openDatabaseModel(MappingPediaEngine.mappingpediaProperties.graphName, MappingPediaEngine.mappingpediaProperties.virtuosoJDBC
           , MappingPediaEngine.mappingpediaProperties.virtuosoUser, MappingPediaEngine.mappingpediaProperties.virtuosoPwd);
@@ -139,6 +139,9 @@ class DatasetController(
         dataset.ckanPackageName = MappingPediaUtility.getStringOrElse(qs, "ckanPackageName", null)
         dataset.ckanOrganizationId = MappingPediaUtility.getStringOrElse(qs, "ckanOrganizationId", null)
         dataset.ckanOrganizationName = MappingPediaUtility.getStringOrElse(qs, "ckanOrganizationName", null)
+        dataset.dctIssued = MappingPediaUtility.getStringOrElse(qs, "dateIssued", null)
+        dataset.dctModified = MappingPediaUtility.getStringOrElse(qs, "dateModified", null)
+
 
         /*
         val distributionID = MappingPediaUtility.getStringOrElse(qs, "distributionID", null)
