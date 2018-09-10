@@ -195,13 +195,15 @@ class Dataset(val dctPublisher:Agent, val dctIdentifier:String) extends Entity {
 
   def getCKAN_package_name = this.ckanPackageName
 
-
   def getDistributions = this.dcatDistributions
 
   def getCKAN_organization_id = this.ckanOrganizationId
 
   def getCKAN_organization_name = this.ckanOrganizationName
 
+  def getIssued_date = this.dctIssued
+
+  def getModified_date = this.dctModified
 }
 
 object Dataset {

@@ -36,6 +36,11 @@ object TestDatasetsController {
     val allDatasets = datasetController.findAll();
     logger.info(s"allDatasets = ${allDatasets}")
 
+    allDatasets.results.map(dataset => {
+      logger.info(s"Issued Date = ${dataset.dctIssued}")
+      logger.info(s"Modified Date = ${dataset.dctModified}")
+    })
+
   }
 
   def testAddEmptyDataset() = {
@@ -45,6 +50,8 @@ object TestDatasetsController {
       , true
       , true
     );
+
+
   }
 
   def testOneDistributionDataset(agent:Agent) = {
